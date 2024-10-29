@@ -17,6 +17,7 @@
   <exec_depend>Boost</exec_depend>
 
   <depend>control_msgs</depend>
+  <depend>ur_robot_driver</depend>
 
   <member_of_group>rosidl_interface_packages</member_of_group>
   

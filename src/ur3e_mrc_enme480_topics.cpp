@@ -62,7 +62,6 @@ private:
     grip_grasp_pub_->publish(grip_grasp_msg);
     grip_inp_pub_->publish(grip_inp_msg);
     
-    // RCLCPP_INFO(this->get_logger(), "I got js message");
   }
 
   rclcpp::Subscription<ur_msgs::msg::IOStates>::SharedPtr sub_io_;

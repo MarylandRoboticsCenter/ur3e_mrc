@@ -5,6 +5,12 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='ur3e_mrc',
-            executable='ur3e_mrc_enme480_ctrl'
-        )
+            executable='ur3e_mrc_enme480_ctrl',
+            output='screen'
+        ),
+        Node(
+            package='ur3e_mrc',
+            executable='ur3e_mrc_enme480_topics',
+            output='screen'
+        ),        
     ])
