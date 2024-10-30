@@ -4,6 +4,7 @@
 #define CTRL_TO_RUN "scaled_joint_trajectory_controller"
 
 bool volatile grip_isON = false;
+bool volatile laserP_isON = false;
 bool volatile ur3e_isReady = false;
 
 namespace cb_group_ur3e
@@ -16,6 +17,7 @@ public:
     client_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     sub_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     io_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    lp_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     client_traj_ = rclcpp_action::create_client<control_msgs::action::FollowJointTrajectory>(node_, "scaled_joint_trajectory_controller/follow_joint_trajectory", client_cb_group_);
     RCLCPP_INFO(node_->get_logger(), "Waiting for the joint_trajectory_action server");
@@ -31,6 +33,11 @@ public:
     options_comm.callback_group = sub_cb_group_;
     sub_comm_ = node_->create_subscription<ur3e_mrc::msg::CommandUR3e>("ur3/command", 10, std::bind(&UR3eENME480Control::comm_callback, this, std::placeholders::_1), options_comm);
     RCLCPP_INFO(node_->get_logger(), "Subscribed to ur3 command");
+
+    rclcpp::SubscriptionOptions options_lp;
+    options_lp.callback_group = lp_cb_group_;
+    sub_lp_ = node_->create_subscription<std_msgs::msg::Bool>("ur3/laser_point", 10, std::bind(&UR3eENME480Control::lp_callback, this, std::placeholders::_1), options_lp);
+    RCLCPP_INFO(node_->get_logger(), "Subscribed to ur3 laser point ");    
 
     // Controller manager service to switch controllers
     controller_manager_srv_ = node_->create_client<controller_manager_msgs::srv::SwitchController>("controller_manager/switch_controller");
@@ -103,8 +110,10 @@ private:
   rclcpp::CallbackGroup::SharedPtr client_cb_group_;
   rclcpp::CallbackGroup::SharedPtr sub_cb_group_;
   rclcpp::CallbackGroup::SharedPtr io_cb_group_;
+  rclcpp::CallbackGroup::SharedPtr lp_cb_group_;
 
   rclcpp::Subscription<ur3e_mrc::msg::CommandUR3e>::SharedPtr sub_comm_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_lp_;  
 
   rclcpp_action::Client<control_msgs::action::FollowJointTrajectory>::SharedPtr client_traj_;
 
@@ -192,6 +201,20 @@ private:
     goal.trajectory.points[0].accelerations = {}; // Initialize with all zeros
   }
 
+  void lp_callback(const std_msgs::msg::Bool & msg)
+  {
+    if (msg.data && !laserP_isON && ur3e_isReady)
+    {
+      ioCtrl(17, 1); // turning the laser pointer ON
+      laserP_isON = true;
+    }
+    else if (!msg.data && laserP_isON)
+    {
+      ioCtrl(17, 0); // turning the laser pointer OFF
+      laserP_isON = false;
+    }
+  }
+
   void comm_callback(const ur3e_mrc::msg::CommandUR3e & msg)
   {
     // RCLCPP_INFO(node_->get_logger(), "Got ur3e command");
@@ -220,17 +243,26 @@ private:
     // fill the positions of the goal
     goal.trajectory.points[0].positions.resize(N_JOINTS);
     goal.trajectory.points[0].positions = msg.destination;
-    goal.trajectory.points[0].positions[0] -= boost::math::constants::pi<double>() / 2;
+    goal.trajectory.points[0].positions[0] += boost::math::constants::pi<double>() / 2;
+    goal.trajectory.points[0].positions[3] -= boost::math::constants::pi<double>() / 2;
     goal.trajectory.points[0].time_from_start = rclcpp::Duration::from_seconds(2.0);
     // pt.time_from_start = get_duration(data.destination, data.v)
 
     if (ur3e_isReady) {
+      // turning the laser pointer off before moving
+      if (laserP_isON) {
+        ioCtrl(17, 0); // turning the laser pointer OFF
+      }
       ur3e_isReady = false;
       bool traj_result = sendTrajectory(goal);
 
       if (traj_result) {
         RCLCPP_INFO(node_->get_logger(), "Ready for a new goal");
         ur3e_isReady = true;
+        // turning the laser pointer ON if it was ON
+        if (laserP_isON) {
+          ioCtrl(17, 1); // turning the laser pointer ON
+        }
       }
       else {
         RCLCPP_INFO(node_->get_logger(), "Something went wrong, restart the node");
