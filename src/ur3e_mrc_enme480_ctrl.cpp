@@ -252,6 +252,7 @@ private:
       // turning the laser pointer off before moving
       if (laserP_isON) {
         ioCtrl(17, 0); // turning the laser pointer OFF
+        laserP_isON = false;
       }
       ur3e_isReady = false;
       bool traj_result = sendTrajectory(goal);
@@ -260,9 +261,9 @@ private:
         RCLCPP_INFO(node_->get_logger(), "Ready for a new goal");
         ur3e_isReady = true;
         // turning the laser pointer ON if it was ON
-        if (laserP_isON) {
-          ioCtrl(17, 1); // turning the laser pointer ON
-        }
+        // if (laserP_isON) {
+        //   ioCtrl(17, 1); // turning the laser pointer ON
+        // }
       }
       else {
         RCLCPP_INFO(node_->get_logger(), "Something went wrong, restart the node");
