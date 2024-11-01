@@ -39,16 +39,16 @@ public:
     sub_lp_ = node_->create_subscription<std_msgs::msg::Bool>("ur3/laser_point", 10, std::bind(&UR3eENME480Control::lp_callback, this, std::placeholders::_1), options_lp);
     RCLCPP_INFO(node_->get_logger(), "Subscribed to ur3 laser point ");    
 
-    // Controller manager service to switch controllers
-    controller_manager_srv_ = node_->create_client<controller_manager_msgs::srv::SwitchController>("controller_manager/switch_controller");
-    // Controller manager service to list controllers
-    controller_list_srv_ = node_->create_client<controller_manager_msgs::srv::ListControllers>("controller_manager/list_controllers");
+    // // Controller manager service to switch controllers
+    // controller_manager_srv_ = node_->create_client<controller_manager_msgs::srv::SwitchController>("controller_manager/switch_controller");
+    // // Controller manager service to list controllers
+    // controller_list_srv_ = node_->create_client<controller_manager_msgs::srv::ListControllers>("controller_manager/list_controllers");
 
-    controller_manager_srv_->wait_for_service();
-    controller_list_srv_->wait_for_service();
+    // controller_manager_srv_->wait_for_service();
+    // controller_list_srv_->wait_for_service();
 
     // making sure the proper controller is running
-    ctrlRunCheck();
+    // ctrlRunCheck();
 
     // Controller manager service to manage the io controller
     io_client_srv_ = node_->create_client<ur_msgs::srv::SetIO>("/io_and_status_controller/set_io", rmw_qos_profile_services_default, io_cb_group_);
@@ -63,10 +63,16 @@ public:
 
   void ioStartStop(unsigned short int valPin)
   {
+    // changing tool voltage to 12V or 0V to enable laser pointer
     auto request_io = std::make_shared<ur_msgs::srv::SetIO::Request>();
-    request_io->fun = 1;  // 1 is digital output
-    request_io->pin = 12;   // Pin number
-    request_io->state = valPin; // State, as far as I know it can be also voltage
+    request_io->fun = 4;  // 4 is FUN_SET_TOOL_VOLTAGE
+    request_io->pin = 17;   // Pin number, not important
+    if (valPin == 1) {
+      request_io->state = 12; // State
+    }
+    else {
+      request_io->state = 0; // State
+    }
 
     // send the request and wait for the result
     auto future_io = io_client_srv_->async_send_request(request_io);
@@ -74,7 +80,31 @@ public:
       rclcpp::spin_until_future_complete(node_->get_node_base_interface(), future_io);
       auto result_io = future_io.get();
       if (result_io->success == true) {
-        RCLCPP_INFO(node_->get_logger(), "IO Start/Stop succeeded");
+        RCLCPP_INFO(node_->get_logger(), "Laser pointer is activated");
+      }
+      else {  
+        RCLCPP_ERROR(node_->get_logger(), "IO Start/Stop failed");
+      }
+    }
+    else if (valPin == 0) {
+      rclcpp::sleep_for(std::chrono::seconds(1));
+      RCLCPP_INFO(node_->get_logger(), "Laser pointer should be deactivated");
+    }
+    
+
+    //turning ON the Vacuum generator
+    // auto request_io = std::make_shared<ur_msgs::srv::SetIO::Request>();
+    request_io->fun = 1;  // 1 is digital output
+    request_io->pin = 12;   // Pin number
+    request_io->state = valPin; // State
+
+    // send the request and wait for the result
+    future_io = io_client_srv_->async_send_request(request_io);
+    if (valPin == 1) {
+      rclcpp::spin_until_future_complete(node_->get_node_base_interface(), future_io);
+      auto result_io = future_io.get();
+      if (result_io->success == true) {
+        RCLCPP_INFO(node_->get_logger(), "Vacuum generator is ON");
       }
       else {  
         RCLCPP_ERROR(node_->get_logger(), "IO Start/Stop failed");
@@ -249,21 +279,16 @@ private:
     // pt.time_from_start = get_duration(data.destination, data.v)
 
     if (ur3e_isReady) {
-      // turning the laser pointer off before moving
-      if (laserP_isON) {
-        ioCtrl(17, 0); // turning the laser pointer OFF
-        laserP_isON = false;
-      }
+      // turning off the laser pointer off before moving
+      ioCtrl(17, 0); // turning the laser pointer OFF
+      laserP_isON = false;      
+
       ur3e_isReady = false;
       bool traj_result = sendTrajectory(goal);
 
       if (traj_result) {
         RCLCPP_INFO(node_->get_logger(), "Ready for a new goal");
         ur3e_isReady = true;
-        // turning the laser pointer ON if it was ON
-        // if (laserP_isON) {
-        //   ioCtrl(17, 1); // turning the laser pointer ON
-        // }
       }
       else {
         RCLCPP_INFO(node_->get_logger(), "Something went wrong, restart the node");
@@ -273,10 +298,6 @@ private:
       RCLCPP_INFO(node_->get_logger(), "Trajectory controller is not ready yet");
     }
 
-    // while (rclcpp::ok()) //!getState().isDone() && 
-    // {
-    //   usleep(50000);
-    // }
   }
 
 };
