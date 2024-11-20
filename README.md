@@ -13,3 +13,6 @@ ros2 topic pub --once /ur3/command ur3e_mrc/msg/CommandUR3e "destination: [0, -1
 v: 1.0
 a: 1.0
 io_0: false" 
+
+
+the gripper the code is based on sdurobotics ur_rtde gripper example

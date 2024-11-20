@@ -3,7 +3,7 @@
 <package format="3">
   <name>ur3e_mrc</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>Intermediary package for labs in ENME480</description>
   <maintainer email="mrc-ipen@todo.todo">mrc-ipen</maintainer>
   <license>TODO: License declaration</license>
 

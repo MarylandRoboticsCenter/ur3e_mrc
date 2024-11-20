@@ -19,6 +19,7 @@ find_package(std_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(ur_msgs REQUIRED)
 find_package(ur_robot_driver REQUIRED)
+find_package(ur_rtde REQUIRED)
 
 find_package(Boost REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -52,6 +53,13 @@ ament_target_dependencies(ur3e_mrc_enme480_ctrl
   ur_msgs
 )
 
+add_executable(ur3e_mrc_robotiq src/ur3e_mrc_robotiq.cpp)
+ament_target_dependencies(ur3e_mrc_robotiq
+  rclcpp
+  std_msgs
+  sensor_msgs
+  ur_rtde
+)
 
 
 install(
@@ -69,15 +77,21 @@ install(
   DESTINATION lib/${PROJECT_NAME}
   INCLUDES DESTINATION include)
 
-  install(
-    TARGETS ur3e_mrc_enme480_ctrl
-    DESTINATION lib/${PROJECT_NAME}
-    INCLUDES DESTINATION include)
+install(
+  TARGETS ur3e_mrc_enme480_ctrl
+  DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include)
+
+install(
+  TARGETS ur3e_mrc_robotiq
+  DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include)
 
 rosidl_get_typesupport_target(cpp_typesupport_target
   ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 target_link_libraries(ur3e_mrc_enme480_topics "${cpp_typesupport_target}")
 target_link_libraries(ur3e_mrc_enme480_ctrl "${cpp_typesupport_target}")
+target_link_libraries(ur3e_mrc_robotiq "${cpp_typesupport_target}" ur_rtde::rtde)
 
 ament_package()
