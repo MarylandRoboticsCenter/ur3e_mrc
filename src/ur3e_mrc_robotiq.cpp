@@ -9,12 +9,16 @@ class UR3eMRCRobotiq
 public:
   explicit UR3eMRCRobotiq(rclcpp::Node::SharedPtr node) : node_(node)
   {
-    ur_rtde::RobotiqGripper gripper("127.0.0.1", 63352, true);
+    ur_rtde::RobotiqGripper gripper("192.168.77.22", 63352, true);
     gripper.connect();
     RCLCPP_INFO(node_->get_logger(), "Activating gripper");
 
     int status = gripper.move(1, 1, 0, ur_rtde::RobotiqGripper::WAIT_FINISHED);
     RCLCPP_INFO(node_->get_logger(), "The gripper's status is: %i", status);
+
+    // RCLCPP_INFO(node_->get_logger(), "Disconnecting gripper");
+    // gripper.disconnect();
+
 
   }
 
