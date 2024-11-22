@@ -57,7 +57,6 @@ add_executable(ur3e_mrc_robotiq src/ur3e_mrc_robotiq.cpp)
 ament_target_dependencies(ur3e_mrc_robotiq
   rclcpp
   std_msgs
-  sensor_msgs
   ur_rtde
 )
 
