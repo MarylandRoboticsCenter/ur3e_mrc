@@ -10,6 +10,7 @@ public:
   explicit UR3eMRCRobotiq(rclcpp::Node::SharedPtr node) : node_(node), gripper_("192.168.77.22", 63352, true)
   {
     comm_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    service_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     // gripper = ur_rtde::RobotiqGripper("192.168.77.22", 63352, true);
     gripper_.connect();
@@ -30,13 +31,6 @@ public:
     gripper_.setUnit(ur_rtde::RobotiqGripper::POSITION, ur_rtde::RobotiqGripper::UNIT_PERCENT); //UNIT_NORMALIZED
     RCLCPP_INFO(node_->get_logger(), "OpenPosition: %f  ClosedPosition: %f", gripper_.getOpenPosition(), gripper_.getClosedPosition());    
 
-    // bool grip_isClosed = gripper_.isClosed();
-    // if (grip_isClosed) {RCLCPP_INFO(node_->get_logger(), "gripper is closed");}
-    // else if (!grip_isClosed) {RCLCPP_INFO(node_->get_logger(), "gripper not closed");}
-    // bool grip_isOpen = gripper_.isOpen();
-    // if (grip_isOpen) {RCLCPP_INFO(node_->get_logger(), "gripper is open");}
-    // else if (!grip_isOpen) {RCLCPP_INFO(node_->get_logger(), "gripper not open");}
-
 
     RCLCPP_INFO(node_->get_logger(), "Closing the gripper");
     gripper_.move(0, 1, 0, ur_rtde::RobotiqGripper::WAIT_FINISHED);
@@ -54,6 +48,8 @@ public:
     sub_comm_ = node_->create_subscription<std_msgs::msg::Bool>("ur3/grip_command", 10, std::bind(&UR3eMRCRobotiq::comm_callback, this, std::placeholders::_1), options_comm);
     RCLCPP_INFO(node_->get_logger(), "Subscribed to ur3/grip_command");
 
+    serv_comm_ = node_->create_service<ur3e_mrc::srv::GripperCommand>("ur3/grip_command", std::bind(&UR3eMRCRobotiq::comm_handle this, std::placeholders::_1), service_cb_group_);
+    RCLCPP_INFO(node_->get_logger(), "Created ur3/grip_command service");
   }
 
   void gripperDisconnect()
@@ -67,8 +63,10 @@ private:
   ur_rtde::RobotiqGripper gripper_;
 
   rclcpp::CallbackGroup::SharedPtr comm_cb_group_;
+  rclcpp::CallbackGroup::SharedPtr service_cb_group_;
 
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr sub_comm_;  
+  rclcpp::Service<ur3e_mrc::srv::GripperCommand>::SharedPtr serv_comm_;
 
   void comm_callback(const std_msgs::msg::Bool & msg)
   {
@@ -87,6 +85,38 @@ private:
     auto grip_pos = gripper_.getCurrentPosition();
     RCLCPP_INFO(node_->get_logger(), "gripper current position is: %f", grip_pos);    
   }
+
+  void comm_handle(
+    const std::shared_ptr<ur3e_mrc::srv::GripperCommand::Request> request,
+    std::shared_ptr<ur3e_mrc::srv::GripperCommand::Response> response)
+  {
+    int grip_togo = request->grip_pos;
+    //checking if the request position is in the valid range
+    if (grip_togo > 100) 
+    {
+      grip_togo = 100;
+      RCLCPP_INFO(node_->get_logger(), "The gripper position value has to be within 0 and 100");
+    }
+    else if (grip_togo < 0) 
+    {
+      grip_togo = 0;
+      RCLCPP_INFO(node_->get_logger(), "The gripper position value has to be within 0 and 100");
+    }
+
+    auto grip_curr_pos = gripper_.getCurrentPosition();
+    if (grip_togo > grip_curr_pos) 
+    {
+      RCLCPP_INFO(node_->get_logger(), "Opening the gripper");
+      int status = gripper_.open(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
+    }
+    else
+    {
+      RCLCPP_INFO(node_->get_logger(), "Closing the gripper");
+      int status = gripper_.close(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
+    }    
+
+    response->grip_status = status;
+  }  
 
 };
 }   // namespace grip_group_ur3e

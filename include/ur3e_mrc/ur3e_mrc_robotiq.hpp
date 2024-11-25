@@ -8,3 +8,5 @@
 #include "std_msgs/msg/bool.hpp"
 
 #include <ur_rtde/robotiq_gripper.h>
+
+#include "ur3e_mrc/srv/gripper_command.hpp"
