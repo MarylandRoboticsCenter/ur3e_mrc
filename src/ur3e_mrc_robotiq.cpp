@@ -48,7 +48,8 @@ public:
     sub_comm_ = node_->create_subscription<std_msgs::msg::Bool>("ur3/grip_command", 10, std::bind(&UR3eMRCRobotiq::comm_callback, this, std::placeholders::_1), options_comm);
     RCLCPP_INFO(node_->get_logger(), "Subscribed to ur3/grip_command");
 
-    serv_comm_ = node_->create_service<ur3e_mrc::srv::GripperCommand>("ur3/grip_command", std::bind(&UR3eMRCRobotiq::comm_handle this, std::placeholders::_1), service_cb_group_);
+    // serv_comm_ = node_->create_service<ur3e_mrc::srv::GripperCommand>("ur3/grip_command", std::bind(&UR3eMRCRobotiq::comm_handle this, std::placeholders::_1), service_cb_group_);
+    serv_comm_ = node_->create_service<ur3e_mrc::srv::GripperCommand>("ur3/grip_command", std::bind(&UR3eMRCRobotiq::comm_handle, this, std::placeholders::_1, std::placeholders::_2), rmw_qos_profile_services_default, service_cb_group_);
     RCLCPP_INFO(node_->get_logger(), "Created ur3/grip_command service");
   }
 
@@ -104,15 +105,16 @@ private:
     }
 
     auto grip_curr_pos = gripper_.getCurrentPosition();
+    int status;
     if (grip_togo > grip_curr_pos) 
     {
       RCLCPP_INFO(node_->get_logger(), "Opening the gripper");
-      int status = gripper_.open(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
+      status = gripper_.open(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
     }
     else
     {
       RCLCPP_INFO(node_->get_logger(), "Closing the gripper");
-      int status = gripper_.close(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
+      status = gripper_.close(-1, -1, ur_rtde::RobotiqGripper::WAIT_FINISHED);
     }    
 
     response->grip_status = status;
